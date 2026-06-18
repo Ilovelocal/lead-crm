@@ -1,15 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { ClipboardPaste, ImageUp, Loader2, Sparkles, X } from "lucide-react";
+import { ClipboardPaste, ImageUp, Loader2, ScanText, X } from "lucide-react";
 import { SCREENSHOT_TYPES } from "@/lib/constants";
+import { extractFromImage } from "@/lib/ocr";
 import type { ScreenshotType } from "@/lib/types";
 import type { ProcessResult } from "./ConfirmModal";
 
-// Vercel serverless functions reject request bodies over ~4.5MB, and a base64
-// phone photo can exceed that. Downscale large images in the browser before
-// upload: caps the longest side and re-encodes, keeping payloads small and
-// Gemini fast. Small screenshots are left untouched to preserve text crispness.
+// Downscale large images in the browser before OCR — smaller image = faster
+// scan, and small screenshots are left untouched to preserve text crispness.
 const MAX_DIMENSION = 2000;
 const KEEP_ORIGINAL_UNDER = 1_200_000; // ~0.9MB data URL
 
@@ -30,9 +29,7 @@ async function fileToDataUrl(file: File): Promise<string> {
 
   const longest = Math.max(img.width, img.height);
   const scale = Math.min(1, MAX_DIMENSION / longest);
-  if (scale === 1 && original.length < KEEP_ORIGINAL_UNDER) {
-    return original;
-  }
+  if (scale === 1 && original.length < KEEP_ORIGINAL_UNDER) return original;
 
   const w = Math.round(img.width * scale);
   const h = Math.round(img.height * scale);
@@ -42,8 +39,7 @@ async function fileToDataUrl(file: File): Promise<string> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return original;
   ctx.drawImage(img, 0, 0, w, h);
-  // JPEG at 0.9 keeps text legible for OCR while shrinking the payload a lot.
-  return canvas.toDataURL("image/jpeg", 0.9);
+  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 interface Props {
@@ -55,6 +51,7 @@ export function UploadZone({ onResult }: Props) {
   const [preview, setPreview] = useState<string | null>(null); // data URL
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -90,18 +87,19 @@ export function UploadZone({ onResult }: Props) {
     if (!preview) return;
     setLoading(true);
     setError(null);
+    setProgress(0);
     try {
-      const res = await fetch("/api/process-screenshot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: preview, type }),
+      const data = await extractFromImage(preview, type, (p) => {
+        if (p.status === "recognizing text") {
+          setProgress(Math.round(p.progress * 100));
+        }
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Processing failed.");
-      onResult(json as ProcessResult);
+      onResult({ type, data });
       setPreview(null); // reset for the next screenshot
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(
+        e instanceof Error ? e.message : "Could not read the screenshot.",
+      );
     } finally {
       setLoading(false);
     }
@@ -111,8 +109,8 @@ export function UploadZone({ onResult }: Props) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-indigo-500" />
-          <h2 className="font-semibold text-slate-800">AI screenshot import</h2>
+          <ScanText className="h-5 w-5 text-indigo-500" />
+          <h2 className="font-semibold text-slate-800">Screenshot import</h2>
         </div>
         <div className="flex rounded-lg bg-slate-100 p-1">
           {SCREENSHOT_TYPES.map((opt) => (
@@ -172,11 +170,11 @@ export function UploadZone({ onResult }: Props) {
               <ImageUp className="h-6 w-6 text-slate-400" />
             </div>
             <p className="text-sm font-medium text-slate-600">
-              Drop an image, click to browse, or paste from clipboard
+              Drop an image, tap to browse, or paste from clipboard
             </p>
             <p className="mt-1 flex items-center justify-center gap-1 text-xs text-slate-400">
               <ClipboardPaste className="h-3 w-3" />
-              Click here first, then press Cmd/Ctrl + V
+              On desktop: click here first, then Cmd/Ctrl + V
             </p>
           </>
         )}
@@ -203,15 +201,19 @@ export function UploadZone({ onResult }: Props) {
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Analyzing screenshot…
+            {progress > 0 ? `Reading text… ${progress}%` : "Reading text…"}
           </>
         ) : (
           <>
-            <Sparkles className="h-4 w-4" />
-            Extract with Gemini
+            <ScanText className="h-4 w-4" />
+            Extract text
           </>
         )}
       </button>
+
+      <p className="mt-2 text-center text-[11px] text-slate-400">
+        Text is read on your device — nothing is sent to any AI service.
+      </p>
     </div>
   );
 }

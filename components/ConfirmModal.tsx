@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Loader2, ScanText, X } from "lucide-react";
 import { createLead, updateLead, type LeadInput } from "@/app/actions/leads";
 import { createInteraction } from "@/app/actions/interactions";
 import { STATUS_META, STATUS_ORDER } from "@/lib/constants";
@@ -31,9 +31,9 @@ export function ConfirmModal(props: Props) {
       <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-500" />
+            <ScanText className="h-5 w-5 text-indigo-500" />
             <h2 className="text-base font-semibold text-slate-800">
-              Review AI extraction
+              Review extracted data
             </h2>
           </div>
           <button
@@ -98,7 +98,7 @@ function ProfileForm({ result, onClose, onSaved }: Props) {
     <>
       <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
         <p className="mb-4 text-xs text-slate-500">
-          Gemini read this from the screenshot. Edit anything before saving — a
+          Read from the screenshot. Edit anything before saving — a
           new lead will be created.
         </p>
         <Labeled label="Business name">
@@ -185,7 +185,7 @@ function ChatForm({ result, leads, onClose, onSaved }: Props) {
         await createInteraction({
           leadId,
           summary,
-          // Persist the full Gemini object for auditing / re-processing.
+          // Persist the raw OCR text for auditing / re-processing.
           rawAiAnalysis: d,
         });
         if (newStatus) await updateLead(leadId, { status: newStatus });
@@ -235,7 +235,7 @@ function ChatForm({ result, leads, onClose, onSaved }: Props) {
         )}
         {d.status_update_suggestion && (
           <ReadOnly
-            label="Gemini's status suggestion"
+            label="Suggested status"
             value={d.status_update_suggestion}
           />
         )}

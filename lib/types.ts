@@ -32,7 +32,7 @@ export interface SerializedLeadWithInteractions extends SerializedLead {
   interactions: SerializedInteraction[];
 }
 
-/** Gemini output when type === "profile". */
+/** Parsed fields when type === "profile". */
 export interface ProfileExtraction {
   business_name: string | null;
   email: string | null;
@@ -40,11 +40,11 @@ export interface ProfileExtraction {
   website: string | null;
 }
 
-/** Gemini output when type === "chat". */
+/** Parsed fields when type === "chat". */
 export interface ChatExtraction {
   summary: string | null;
   extracted_details: string | null;
   status_update_suggestion: string | null;
 }
 
-export type AiExtraction = ProfileExtraction | ChatExtraction;
+export type Extraction = ProfileExtraction | ChatExtraction;

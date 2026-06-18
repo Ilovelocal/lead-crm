@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Lead CRM",
-  description: "AI-powered lead tracking with Gemini Vision screenshot import.",
+  description: "Lead tracking with on-device OCR screenshot import.",
   applicationName: "Lead CRM",
   // iOS "Add to Home Screen" -> standalone launch + home-screen icon.
   appleWebApp: {

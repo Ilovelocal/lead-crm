@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Lead CRM",
     short_name: "Lead CRM",
-    description: "AI-powered lead tracking with Gemini screenshot import.",
+    description: "Lead tracking with on-device OCR screenshot import.",
     start_url: "/",
     scope: "/",
     display: "standalone",

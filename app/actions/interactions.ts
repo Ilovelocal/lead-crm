@@ -8,7 +8,7 @@ import type { SerializedInteraction } from "@/lib/types";
 export interface InteractionInput {
   leadId: string;
   summary: string;
-  /** Raw Gemini JSON for auditing. Pass the full chat extraction object. */
+  /** Raw OCR text/extraction for auditing. */
   rawAiAnalysis?: unknown;
 }
 
