@@ -1,0 +1,70 @@
+// Prisma schema for the single-user Lead CRM.
+// Run `npx prisma db push` (quick prototyping) or `npx prisma migrate dev`
+// (versioned migrations) after editing.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev; "rhel-openssl-3.0.x" is the Vercel serverless
+  // runtime. Including it avoids a "query engine not found" error in prod.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Pipeline stage for a lead. Stored as a native Postgres enum.
+enum LeadStatus {
+  new_lead
+  in_conversation
+  waiting_on_client
+  active_subscriber
+  inactive
+}
+
+/// The single CRM account. No open registration — one row, created on first run
+/// and editable from the Account page.
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Lead {
+  id             String        @id @default(uuid()) @db.Uuid
+  businessName   String        @map("business_name")
+  contactPerson  String?       @map("contact_person")
+  email          String?       @unique
+  phone          String?
+  website        String?
+  status         LeadStatus    @default(new_lead)
+  // Decimal(10,2) -> up to 99,999,999.99. Bump precision if you bill more.
+  monthlyRevenue Decimal       @default(0.00) @map("monthly_revenue") @db.Decimal(10, 2)
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  interactions   Interaction[]
+
+  @@index([status])
+  @@map("leads")
+}
+
+model Interaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  leadId        String   @map("lead_id") @db.Uuid
+  summary       String   @db.Text
+  /// Raw, unmodified JSON returned by Gemini for auditing / re-processing.
+  rawAiAnalysis Json?    @map("raw_ai_analysis")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  lead          Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("interactions")
+}
